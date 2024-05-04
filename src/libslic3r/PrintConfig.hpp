@@ -106,6 +106,13 @@ enum SeamPosition {
     spRandom, spNearest, spAligned, spRear
 };
 
+//w34
+enum class SeamScarfType {
+    None,
+    External,
+    All,
+};
+
 enum SLAMaterial {
     slamTough,
     slamFlex,
@@ -168,6 +175,8 @@ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SupportMaterialPattern)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SupportMaterialStyle)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SupportMaterialInterfacePattern)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SeamPosition)
+//w34
+CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SeamScarfType)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SLADisplayOrientation)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SLAPillarConnectionMode)
 CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SLASupportTreeType)
@@ -610,6 +619,15 @@ PRINT_CONFIG_CLASS_DEFINE(
     //w31
     ((ConfigOptionFloat,              make_overhang_printable_angle))
     ((ConfigOptionFloat,              make_overhang_printable_hole_size))
+    //w34
+    ((ConfigOptionEnum<SeamScarfType>,  seam_slope_type))
+    ((ConfigOptionBool,                 seam_slope_conditional))
+    ((ConfigOptionInt,                  scarf_angle_threshold))
+    ((ConfigOptionFloatOrPercent,       seam_slope_start_height))
+    ((ConfigOptionBool,                 seam_slope_entire_loop))
+    ((ConfigOptionFloat,                seam_slope_min_length))
+    ((ConfigOptionInt,                  seam_slope_steps))
+    ((ConfigOptionBool,                 seam_slope_inner_walls))
 )
 
 PRINT_CONFIG_CLASS_DEFINE(
@@ -712,6 +730,8 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloats,               machine_min_travel_rate))
     // M205 S... [mm/sec]
     ((ConfigOptionFloats,               machine_min_extruding_rate))
+    //w34
+    ((ConfigOptionBool, has_scarf_joint_seam))
 )
 
 PRINT_CONFIG_CLASS_DEFINE(

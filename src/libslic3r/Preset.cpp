@@ -497,6 +497,9 @@ static std::vector<std::string> s_Preset_print_options {
     ,"make_overhang_printable", "make_overhang_printable_angle", "make_overhang_printable_hole_size"
     //w33
     ,"ironing_pattern"
+    //w34
+    ,"seam_slope_type", "seam_slope_conditional", "scarf_angle_threshold", "seam_slope_start_height", "seam_slope_entire_loop", "seam_slope_min_length",
+    "seam_slope_steps", "seam_slope_inner_walls"
 };
 
 static std::vector<std::string> s_Preset_filament_options {

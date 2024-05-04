@@ -444,7 +444,7 @@ std::string GCodeWriter::extrude_to_xy_G2G3IJ(const Vec2d &point, const Vec2d &i
     return w.string();
 }
 
-#if 0
+
 std::string GCodeWriter::extrude_to_xyz(const Vec3d &point, double dE, const std::string_view comment)
 {
     m_pos = point;
@@ -453,11 +453,11 @@ std::string GCodeWriter::extrude_to_xyz(const Vec3d &point, double dE, const std
     
     GCodeG1Formatter w;
     w.emit_xyz(point);
-    w.emit_e(m_extrusion_axis, m_extruder->E());
+    w.emit_e(m_extrusion_axis, m_extruder->extrude(dE).second);
     w.emit_comment(this->config.gcode_comments, comment);
     return w.string();
 }
-#endif
+
 
 std::string GCodeWriter::retract(bool before_wipe)
 {

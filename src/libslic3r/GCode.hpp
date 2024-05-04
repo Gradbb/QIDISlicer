@@ -458,7 +458,7 @@ private:
     // Back-pointer to Print (const).
     const Print*                        m_print;
     std::string                         _extrude(
-        const ExtrusionAttributes &attribs, const Geometry::ArcWelder::Path &path, const std::string_view description, double speed = -1);
+        const ExtrusionAttributes &attribs, const Geometry::ArcWelder::Path &path, const std::string_view description, double speed = -1,double ratio = 0);
     void                                print_machine_envelope(GCodeOutputStream &file, const Print &print);
     void                                _print_first_layer_bed_temperature(GCodeOutputStream &file, const Print &print, const std::string &gcode, unsigned int first_printing_extruder_id, bool wait);
     void                                _print_first_layer_extruder_temperatures(GCodeOutputStream &file, const Print &print, const std::string &gcode, unsigned int first_printing_extruder_id, bool wait);

@@ -2978,8 +2978,70 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &loop_src, const GC
 
     // Extrude along the smooth path.
     std::string gcode;
-    for (const GCode::SmoothPathElement &el : smooth_path)
-        gcode += this->_extrude(el.path_attributes, el.path, description, speed);
+    double      ext_length   = 0;
+    double      inner_length = 0;
+    double      start_height = 0;
+    if (this->config().seam_slope_start_height.percent)
+        start_height = this->config().seam_slope_start_height * this->config().layer_height / 100;
+    else
+        start_height = this->config().seam_slope_start_height;
+    double height_for_lift = this->config().layer_height - start_height;
+    for (const GCode::SmoothPathElement &el : smooth_path) {
+        Vec2d  prev_exact = this->point_to_gcode(el.path.front().point);
+        Vec2d  prev       = GCodeFormatter::quantize(prev_exact);
+        auto   it         = el.path.begin();
+        auto   end        = el.path.end();
+        double sum_lift   = 0;
+        for (++it; it != end; ++it) {
+            Vec2d  p_exact     = this->point_to_gcode(it->point);
+            Vec2d  p           = GCodeFormatter::quantize(p_exact);
+            double line_length = (p - prev).norm();
+            if (el.path_attributes.role.is_external_perimeter())
+                ext_length += line_length;
+            if (el.path_attributes.role.is_perimeter())
+                inner_length += line_length;
+
+            prev       = p;
+            prev_exact = p_exact;
+        }
+        
+        
+        /* for (int i = 0; i < el.path.size() - 1; i++) {
+            double x1 = el.path[i].point.x();
+            double x2 = el.path[i + 1].point.x();
+            double y1 = el.path[i].point.y();
+            double y2 = el.path[i+1].point.y();
+            double temp_length = sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
+            if (el.path_attributes.role.is_external_perimeter())
+                ext_length += temp_length;
+            if (el.path_attributes.role.is_perimeter())
+                inner_length += temp_length;  
+        }*/
+    }
+    
+    double ext_ratio = 0;
+    if (ext_length != 0)
+        ext_ratio = height_for_lift / ext_length;
+    double inner_ratio = 0;
+    if (inner_length != 0)
+        inner_ratio = height_for_lift / inner_length;
+    if (!this->config().seam_slope_entire_loop && ext_length > this->config().seam_slope_min_length) {
+        ext_ratio = height_for_lift / this->config().seam_slope_min_length;
+    }
+    if (!this->config().seam_slope_entire_loop && inner_length > this->config().seam_slope_min_length) {
+        inner_ratio = height_for_lift / this->config().seam_slope_min_length;
+    }
+    for (const GCode::SmoothPathElement &el : smooth_path) {
+        if (this->config().seam_slope_type == SeamScarfType::None )
+            gcode += this->_extrude(el.path_attributes, el.path, description, speed);
+        else {
+            if (el.path_attributes.role.is_external_perimeter() && this->config().seam_slope_type != SeamScarfType::None)
+                gcode += this->_extrude(el.path_attributes, el.path, description, speed, ext_ratio);
+            else if (el.path_attributes.role.is_perimeter() && this->config().seam_slope_type != SeamScarfType::None &&
+                this->config().seam_slope_inner_walls)
+                gcode += this->_extrude(el.path_attributes, el.path, description, speed, inner_ratio);
+        }
+    }
 
     // reset acceleration
     gcode += m_writer.set_print_acceleration(fast_round_up<unsigned int>(m_config.default_acceleration.value));
@@ -3247,7 +3309,8 @@ std::string GCodeGenerator::_extrude(
     const ExtrusionAttributes       &path_attr, 
     const Geometry::ArcWelder::Path &path, 
     const std::string_view           description,
-    double                           speed)
+    double                           speed,
+    double radio)
 {
     std::string gcode;
     const std::string_view description_bridge = path_attr.role.is_bridge() ? " (bridge)"sv : ""sv;
@@ -3487,6 +3550,13 @@ std::string GCodeGenerator::_extrude(
     Vec2d prev = GCodeFormatter::quantize(prev_exact);
     auto  it   = path.begin();
     auto  end  = path.end();
+    double sum_lift   = 0;
+    double start_height = 0;
+    if (this->config().seam_slope_start_height.percent)
+        start_height = this->config().seam_slope_start_height * this->config().layer_height / 100;
+    else
+        start_height = this->config().seam_slope_start_height;
+    double height_for_lift = this->config().layer_height - start_height;
     for (++ it; it != end; ++ it) {
         Vec2d p_exact = this->point_to_gcode(it->point);
         Vec2d p = GCodeFormatter::quantize(p_exact);
@@ -3511,8 +3581,26 @@ std::string GCodeGenerator::_extrude(
             }
             if (radius == 0) {
                 // Extrude line segment.
-                if (const double line_length = (p - prev).norm(); line_length > 0)
-                    gcode += m_writer.extrude_to_xy(p, e_per_mm * line_length, comment);
+                double curt_length = 0;
+                if (radio) {
+                    double x1   = p.x();
+                    double x2   = prev.x();
+                    double y1   = p.y();
+                    double y2   = prev.y();
+                    curt_length = sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
+                }
+                if (const double line_length = (p - prev).norm(); line_length > 0) {
+                    if (curt_length ==0 || this->on_first_layer() || sum_lift >= 0.1)
+                        gcode += m_writer.extrude_to_xy(p, e_per_mm * line_length, comment);
+                    else {
+                        double cur_lift = line_length * radio;
+                        if (sum_lift + cur_lift >= height_for_lift)
+                            cur_lift = height_for_lift - sum_lift;
+                        Vec3d new_p(p.x(), p.y(), this->m_last_layer_z - height_for_lift + sum_lift + cur_lift);
+                        gcode += m_writer.extrude_to_xyz(new_p, e_per_mm * line_length, comment);
+                        sum_lift += cur_lift;
+                    }
+                }
             } else {
                 double angle = Geometry::ArcWelder::arc_angle(prev.cast<double>(), p.cast<double>(), double(radius));
                 assert(angle > 0);

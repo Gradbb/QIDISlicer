@@ -383,6 +383,18 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     bool have_make_overhang_printable = config->opt_bool("make_overhang_printable");
     toggle_field("make_overhang_printable_angle", have_make_overhang_printable);
     toggle_field("make_overhang_printable_hole_size", have_make_overhang_printable);
+
+    //w34
+    toggle_field("seam_slope_type", !has_spiral_vase);
+    bool has_seam_slope = !has_spiral_vase && config->opt_enum<SeamScarfType>("seam_slope_type") != SeamScarfType::None;
+    toggle_field("seam_slope_conditional", has_seam_slope);
+    toggle_field("scarf_angle_threshold", has_seam_slope && config->opt_bool("seam_slope_conditional"));
+    toggle_field("seam_slope_start_height", has_seam_slope);
+    toggle_field("seam_slope_entire_loop", has_seam_slope);
+    toggle_field("seam_slope_min_length", has_seam_slope);
+    toggle_field("seam_slope_steps", has_seam_slope);
+    toggle_field("seam_slope_inner_walls", has_seam_slope);
+    toggle_field("seam_slope_min_length", !config->opt_bool("seam_slope_entire_loop"));
 }
 
 void ConfigManipulation::toggle_print_sla_options(DynamicPrintConfig* config)
