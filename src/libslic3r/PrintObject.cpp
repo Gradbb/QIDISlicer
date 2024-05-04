@@ -739,11 +739,15 @@ bool PrintObject::invalidate_state_by_config_options(
             steps.emplace_back(posSlice);
 		} else if (
                opt_key == "elefant_foot_compensation"
+            //w26
+            || opt_key == "elefant_foot_compensation_layers"
             || opt_key == "support_material_contact_distance" 
             //w12
             || opt_key == "xy_size_compensation"
             || opt_key == "xy_hole_compensation"
-            || opt_key == "xy_contour_compensation") {
+            || opt_key == "xy_contour_compensation"
+            //w27
+            || opt_key == "precise_z_height" ) {
             steps.emplace_back(posSlice);
         } else if (opt_key == "support_material") {
             steps.emplace_back(posSupportMaterial);
@@ -788,7 +792,9 @@ bool PrintObject::invalidate_state_by_config_options(
             || opt_key == "raft_first_layer_density"
             || opt_key == "raft_first_layer_expansion"
             || opt_key == "dont_support_bridges"
-            || opt_key == "first_layer_extrusion_width") {
+            || opt_key == "first_layer_extrusion_width"
+            //w28
+            || opt_key == "max_bridge_length") {
             steps.emplace_back(posSupportMaterial);
         } else if (opt_key == "bottom_solid_layers") {
             steps.emplace_back(posPrepareInfill);
@@ -868,7 +874,13 @@ bool PrintObject::invalidate_state_by_config_options(
             //w16
             || opt_key == "top_one_wall_type"
             //w17
-            || opt_key == "top_area_threshold") {
+            || opt_key == "top_area_threshold"
+            //w23
+            || opt_key == "only_one_wall_first_layer"
+            //w31
+            || opt_key == "make_overhang_printable"
+            || opt_key == "make_overhang_printable_angle"
+            || opt_key == "make_overhang_printable_hole_size") {
             steps.emplace_back(posSlice);
         } else if (
                opt_key == "seam_position"
@@ -2103,6 +2115,8 @@ void PrintObject::bridge_over_infill()
         switch (dominant_pattern) {
         case ipHilbertCurve: bridging_angle += 0.25 * PI; break;
         case ipOctagramSpiral: bridging_angle += (1.0 / 16.0) * PI; break;
+        //w32
+        case ipCrossHatch: return (bridging_angle + 45.0) * 2.0 * M_PI / 360.;
         default: break;
         }
 

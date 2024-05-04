@@ -3251,7 +3251,9 @@ std::string GCodeGenerator::_extrude(
 {
     std::string gcode;
     const std::string_view description_bridge = path_attr.role.is_bridge() ? " (bridge)"sv : ""sv;
-
+    //w30
+    bool                   is_first_or_bottom_layer = (path_attr.role == ExtrusionRole::TopSolidInfill) || (this->on_first_layer());
+    bool                   is_first                 = this->on_first_layer();
     const bool has_active_instance{m_label_objects.has_active_instance()};
     if (m_writer.multiple_extruders && has_active_instance) {
         gcode += m_label_objects.maybe_change_instance(m_writer);
@@ -3332,6 +3334,13 @@ std::string GCodeGenerator::_extrude(
 
     // calculate extrusion length per distance unit
     double e_per_mm = m_writer.extruder()->e_per_mm3() * path_attr.mm3_per_mm;
+    //w30
+    if (is_first_or_bottom_layer) {
+        if (is_first)
+            e_per_mm *=  m_config.bottom_solid_infill_flow_ratio ;
+        else
+            e_per_mm *= m_config.top_solid_infill_flow_ratio ;
+    }
     if (m_writer.extrusion_axis().empty())
         // gcfNoExtrusion
         e_per_mm = 0;
@@ -3370,6 +3379,19 @@ std::string GCodeGenerator::_extrude(
             m_config.get_abs_value("first_layer_speed", speed);
     else if (this->object_layer_over_raft())
         speed = m_config.get_abs_value("first_layer_speed_over_raft", speed);
+    //w25
+    else if (m_config.slow_down_layers > 1) {
+        const auto _layer = layer_id() + 1;
+        if (_layer > 0 && _layer < m_config.slow_down_layers) {
+            const auto first_layer_speed = (path_attr.role==ExtrusionRole::Perimeter||path_attr.role==ExtrusionRole::ExternalPerimeter) ? m_config.get_abs_value("first_layer_speed") :
+                                                                       m_config.get_abs_value("first_layer_infill_speed");
+            if (first_layer_speed < speed) {
+                speed = std::min(speed, Slic3r::lerp(first_layer_speed, speed, (double) _layer / m_config.slow_down_layers));
+            }
+        }
+    }
+    
+    
 
     std::pair<float, float> dynamic_speed_and_fan_speed{-1, -1};
     if (path_attr.overhang_attributes.has_value()) {
@@ -3465,7 +3487,7 @@ std::string GCodeGenerator::_extrude(
     Vec2d prev = GCodeFormatter::quantize(prev_exact);
     auto  it   = path.begin();
     auto  end  = path.end();
-        for (++ it; it != end; ++ it) {
+    for (++ it; it != end; ++ it) {
         Vec2d p_exact = this->point_to_gcode(it->point);
         Vec2d p = GCodeFormatter::quantize(p_exact);
         assert(p != prev);
@@ -3490,19 +3512,19 @@ std::string GCodeGenerator::_extrude(
             if (radius == 0) {
                 // Extrude line segment.
                 if (const double line_length = (p - prev).norm(); line_length > 0)
-            gcode += m_writer.extrude_to_xy(p, e_per_mm * line_length, comment);
-    } else {
+                    gcode += m_writer.extrude_to_xy(p, e_per_mm * line_length, comment);
+            } else {
                 double angle = Geometry::ArcWelder::arc_angle(prev.cast<double>(), p.cast<double>(), double(radius));
                 assert(angle > 0);
                 const double line_length = angle * std::abs(radius);
                 const double dE = e_per_mm * line_length;
                 assert(dE > 0);
                 gcode += m_writer.extrude_to_xy_G2G3IJ(p, ij, it->ccw(), dE, comment);
-        }
+            }
             prev             = p;
             prev_exact = p_exact;
-            }
         }
+    }
 
     if (m_enable_cooling_markers)
         gcode += path_attr.role.is_bridge() ? ";_BRIDGE_FAN_END\n" : ";_EXTRUDE_END\n";

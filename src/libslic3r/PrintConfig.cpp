@@ -120,7 +120,9 @@ static const t_config_enum_values s_keys_map_InfillPattern {
     { "supportcubic",       ipSupportCubic },
     { "lightning",          ipLightning },
         //w14
-    { "concentricInternal", ipConcentricInternal }
+    { "concentricInternal", ipConcentricInternal },
+    //w32
+    { "crosshatch",         ipCrossHatch}
 };
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(InfillPattern)
 
@@ -308,6 +310,27 @@ void PrintConfigDef::init_common_params()
     def->min = 0;
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionFloat(0.));
+
+    //w26
+    def           = this->add("elefant_foot_compensation_layers", coInt);
+    def->label    = L("Elephant foot compensation layers");
+    def->category = L("Advanced");
+    def->tooltip  = L("The number of layers on which the elephant foot compensation will be active. "
+                     "The first layer will be shrunk by the elephant foot compensation value, then "
+                     "the next layers will be linearly shrunk less, up to the layer indicated by this value.");
+    def->sidetext = L("layers");
+    def->min      = 1;
+    def->mode     = comAdvanced;
+    def->set_default_value(new ConfigOptionInt(1));	
+
+    //w27
+    def          = this->add("precise_z_height", coBool);
+    def->label   = L("Precise Z height");
+    def->tooltip = L("Enable this to get precise z height of object after slicing. "
+                     "It will get the precise object height by fine-tuning the layer heights of the last few layers. "
+                     "Note that this is an experimental parameter.");
+    def->mode    = comAdvanced;
+    def->set_default_value(new ConfigOptionBool(0));
 
     def = this->add("thumbnails", coString);
     def->label = L("G-code thumbnails");
@@ -579,6 +602,26 @@ void PrintConfigDef::init_fff_params()
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionFloat(1));
 
+    //w30
+    def          = this->add("top_solid_infill_flow_ratio", coFloat);
+    def->label   = L("Top surface flow ratio");
+    def->category = L("Advanced");
+    def->tooltip = L("This factor affects the amount of material for top solid infill. "
+                     "You can decrease it slightly to have smooth surface finish");
+    def->min     = 0;
+    def->max     = 2;
+    def->mode     = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(1));
+
+    def          = this->add("bottom_solid_infill_flow_ratio", coFloat);
+    def->label   = L("Bottom surface flow ratio");
+    def->category = L("Advanced");
+    def->tooltip = L("This factor affects the amount of material for bottom solid infill");
+    def->min     = 0;
+    def->max     = 2;
+    def->mode     = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(1));
+
     def = this->add("bridge_speed", coFloat);
     def->label = L("Bridges");
     def->category = L("Speed");
@@ -846,6 +889,17 @@ void PrintConfigDef::init_fff_params()
                    "under bridged areas.");
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionBool(true));
+
+    //w28
+    def           = this->add("max_bridge_length", coFloat);
+    def->label    = L("Max bridge length");
+    def->category = L("Support material");
+    def->tooltip  = L("Max length of bridges that don't need support. Set it to 0 if you want all bridges to be supported, and set it to a "
+                     "very large value if you don't want any bridges to be supported.");
+    def->sidetext = L("mm");
+    def->min      = 0;
+    def->mode     = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(10));
 
     def = this->add("duplicate_distance", coFloat);
     def->label = L("Distance between copies");
@@ -1386,7 +1440,9 @@ void PrintConfigDef::init_fff_params()
         { "octagramspiral",     L("Octagram Spiral")},
         { "adaptivecubic",      L("Adaptive Cubic")},
         { "supportcubic",       L("Support Cubic")},
-        { "lightning",          L("Lightning")}
+        { "lightning",          L("Lightning")},
+        //w32
+        { "crosshatch",          L("Cross Hatch")}
     });
     def->set_default_value(new ConfigOptionEnum<InfillPattern>(ipStars));
 
@@ -1481,6 +1537,16 @@ void PrintConfigDef::init_fff_params()
     def->min = 0;
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionFloatOrPercent(30, false));
+
+    //w25
+    def           = this->add("slow_down_layers", coInt);
+    def->label    = L("Number of slow layers");
+    def->tooltip  = L("The first few layers are printed slower than normal. "
+                     "The speed is gradually increased in a linear fashion over the specified number of layers.");
+    def->category = L("Speed");
+    def->min      = 0;
+    def->mode     = comAdvanced;
+    def->set_default_value(new ConfigOptionInt(0));
 
     def = this->add("first_layer_temperature", coInts);
     def->label = L("First layer");
@@ -1831,6 +1897,18 @@ void PrintConfigDef::init_fff_params()
     });
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionEnum<IroningType>(IroningType::TopSurfaces));
+
+    //w33
+    def                = this->add("ironing_pattern", coEnum);
+    def->label         = L("Ironing Pattern");
+    def->category      = L("Ironing");
+    def->tooltip       = L("Ironing Type");
+    def->set_enum<InfillPattern>({
+        { "rectilinear",    L("Rectilinear") },
+        { "concentric",        L("Concentric") }
+    });
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionEnum<InfillPattern>(ipRectilinear));
 
     def = this->add("ironing_flowrate", coPercent);
     def->label = L("Flow rate");
@@ -3628,6 +3706,44 @@ void PrintConfigDef::init_fff_params()
     def->mode     = comAdvanced;
     def->set_default_value(new ConfigOptionPercent(100));
 
+    //w23
+    def           = this->add("only_one_wall_first_layer", coBool);
+    def->label    = L("Only one wall on first layer");
+    def->category = L("Advanced");
+    def->tooltip  = L("Use only one wall on the first layer of model");
+    def->mode     = comAdvanced;
+    def->set_default_value(new ConfigOptionBool(false));
+
+    //w31
+    def           = this->add("make_overhang_printable", coBool);
+    def->label    = L("Make overhang printable");
+    def->category = L("Advanced");
+    def->tooltip  = L("Modify the geometry to print overhangs without support material.");
+    def->mode     = comAdvanced;
+    def->set_default_value(new ConfigOptionBool(false));
+
+    def           = this->add("make_overhang_printable_angle", coFloat);
+    def->label    = L("Make overhang printable maximum angle");
+    def->category = L("Advanced");
+    def->tooltip  = L("Maximum angle of overhangs to allow after making more steep overhangs printable."
+                     "90° will not change the model at all and allow any overhang, while 0 will "
+                     "replace all overhangs with conical material.");
+    def->sidetext = L("°");
+    def->mode     = comAdvanced;
+    def->min      = 0.;
+    def->max      = 90.;
+    def->set_default_value(new ConfigOptionFloat(45.));
+
+    def           = this->add("make_overhang_printable_hole_size", coFloat);
+    def->label    = L("Make overhang printable hole area");
+    def->category = L("Advanced");
+    def->tooltip  = L("Maximum area of a hole in the base of the model before it's filled by conical material."
+                     "A value of 0 will fill all the holes in the model base.");
+    def->sidetext = L("mm²");
+    def->mode     = comAdvanced;
+    def->min      = 0.;
+    def->set_default_value(new ConfigOptionFloat(0.));
+
     def = this->add("wall_transition_length", coFloatOrPercent);
     def->label = L("Perimeter transition length");
     def->category = L("Advanced");
@@ -4580,6 +4696,8 @@ void PrintConfigDef::init_sla_params()
         "support_pillar_diameter", "branchingsupport_pillar_diameter",
         "relative_correction_x", "relative_correction_y", "relative_correction_z", 
         "elefant_foot_compensation",
+        //w26
+        "elefant_foot_compensation_layers",
         // int
         "support_points_density_relative"
         }) {
@@ -5011,6 +5129,12 @@ std::string validate(const FullPrintConfig &cfg)
     // --bridge-flow-ratio
     if (cfg.bridge_flow_ratio <= 0)
         return "Invalid value for --bridge-flow-ratio";
+
+    //w30
+    if (cfg.top_solid_infill_flow_ratio <= 0)
+        return "Invalid value for --top-solid-infill-flow-ratio";
+    if (cfg.bottom_solid_infill_flow_ratio <= 0)
+        return "Invalid value for --bottom-solid-infill-flow-ratio";
 
     // extruder clearance
     if (cfg.extruder_clearance_radius <= 0)

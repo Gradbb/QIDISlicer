@@ -69,6 +69,8 @@ enum InfillPattern : int {
     ipCount,
     //w14
     ipConcentricInternal,
+    //w32
+    ipCrossHatch,
 };
 
 enum class IroningType {
@@ -512,7 +514,11 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionEnum<BrimType>,      brim_type))
     ((ConfigOptionFloat,               brim_width))
     ((ConfigOptionBool,                dont_support_bridges))
+    //w28
+    ((ConfigOptionFloat,                max_bridge_length))
     ((ConfigOptionFloat,               elefant_foot_compensation))
+    //w26
+    ((ConfigOptionInt,                 elefant_foot_compensation_layers))
     ((ConfigOptionFloatOrPercent,      extrusion_width))
     ((ConfigOptionFloat,               first_layer_acceleration_over_raft))
     ((ConfigOptionFloatOrPercent,      first_layer_speed_over_raft))
@@ -597,6 +603,13 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionPercent,            top_area_threshold))
     //w21
     ((ConfigOptionFloat,               filter_top_gap_infill))
+    //w23
+    ((ConfigOptionBool, only_one_wall_first_layer))
+    //w27
+    ((ConfigOptionBool, precise_z_height))
+    //w31
+    ((ConfigOptionFloat,              make_overhang_printable_angle))
+    ((ConfigOptionFloat,              make_overhang_printable_hole_size))
 )
 
 PRINT_CONFIG_CLASS_DEFINE(
@@ -637,6 +650,8 @@ PRINT_CONFIG_CLASS_DEFINE(
     // Ironing options
     ((ConfigOptionBool,                 ironing))
     ((ConfigOptionEnum<IroningType>,    ironing_type))
+    //w33
+    ((ConfigOptionEnum<InfillPattern>,  ironing_pattern))
     ((ConfigOptionPercent,              ironing_flowrate))
     ((ConfigOptionFloat,                ironing_spacing))
     ((ConfigOptionFloat,                ironing_speed))
@@ -660,6 +675,11 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,                top_solid_min_thickness))
     ((ConfigOptionFloatOrPercent,       top_solid_infill_speed))
     ((ConfigOptionBool,                 wipe_into_infill))
+    //w30
+    ((ConfigOptionFloat, top_solid_infill_flow_ratio))
+    ((ConfigOptionFloat, bottom_solid_infill_flow_ratio))
+    //w31
+    ((ConfigOptionBool, make_overhang_printable))
 )
 
 PRINT_CONFIG_CLASS_DEFINE(
@@ -855,6 +875,8 @@ PRINT_CONFIG_CLASS_DERIVED_DEFINE(
     ((ConfigOptionFloatOrPercent,     first_layer_extrusion_width))
     ((ConfigOptionFloatOrPercent,     first_layer_height))
     ((ConfigOptionFloatOrPercent,     first_layer_speed))
+    //w25
+    ((ConfigOptionInt,                slow_down_layers))
     ((ConfigOptionInts,               first_layer_temperature))
     ((ConfigOptionIntsNullable,       idle_temperature))
     //B26

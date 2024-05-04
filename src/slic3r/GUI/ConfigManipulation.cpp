@@ -316,6 +316,9 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     toggle_field("support_material_threshold", have_support_material_auto);
     toggle_field("support_material_bottom_contact_distance", have_support_material && ! have_support_soluble);
     toggle_field("support_material_closing_radius", have_support_material && support_material_style == smsSnug);
+    //w28
+    bool can_remove_bridge = have_support_material && !config->opt_bool("dont_support_bridges") ;
+    toggle_field("max_bridge_length", can_remove_bridge && support_material_style == smsOrganic);
 
     const bool has_organic_supports = support_material_style == smsOrganic && 
                                      (config->opt_bool("support_material") || 
@@ -339,7 +342,8 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
         toggle_field(el, have_raft);
 
     bool has_ironing = config->opt_bool("ironing");
-    for (auto el : { "ironing_type", "ironing_flowrate", "ironing_spacing", "ironing_speed" })
+    //w33
+    for (auto el : {"ironing_type", "ironing_flowrate", "ironing_spacing", "ironing_speed", "ironing_pattern"})
     	toggle_field(el, has_ironing);
 
     bool have_sequential_printing = config->opt_bool("complete_objects");
@@ -371,7 +375,14 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig* config)
     toggle_field("min_feature_size", have_arachne);
     toggle_field("min_bead_width", have_arachne);
     toggle_field("thin_walls", !have_arachne);
+    //w21
+    bool is_top_one_wall = config->opt_enum<TopOneWallType>("top_one_wall_type") != TopOneWallType::Disable;
+    toggle_field("top_area_threshold", is_top_one_wall);
 
+    //w31
+    bool have_make_overhang_printable = config->opt_bool("make_overhang_printable");
+    toggle_field("make_overhang_printable_angle", have_make_overhang_printable);
+    toggle_field("make_overhang_printable_hole_size", have_make_overhang_printable);
 }
 
 void ConfigManipulation::toggle_print_sla_options(DynamicPrintConfig* config)

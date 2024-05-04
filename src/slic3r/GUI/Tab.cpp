@@ -1472,6 +1472,12 @@ void TabPrint::build()
         optgroup->append_single_option_line("top_one_wall_type");
         //w17
         optgroup->append_single_option_line("top_area_threshold");
+        //w23
+        optgroup->append_single_option_line("only_one_wall_first_layer");
+        //w31
+        optgroup->append_single_option_line("make_overhang_printable");
+        optgroup->append_single_option_line("make_overhang_printable_angle");
+        optgroup->append_single_option_line("make_overhang_printable_hole_size");
 
         optgroup = page->new_optgroup(L("Fuzzy skin (experimental)"));
         category_path = "fuzzy-skin_246186/#";
@@ -1492,7 +1498,9 @@ void TabPrint::build()
         optgroup = page->new_optgroup(L("Ironing"));
         category_path = "ironing_177488#";
         optgroup->append_single_option_line("ironing", category_path);
+        //w33
         optgroup->append_single_option_line("ironing_type", category_path + "ironing-type");
+        optgroup->append_single_option_line("ironing_pattern", category_path + "ironing_pattern");
         optgroup->append_single_option_line("ironing_flowrate", category_path + "flow-rate");
         optgroup->append_single_option_line("ironing_spacing", category_path + "spacing-between-ironing-passes");
 
@@ -1560,6 +1568,8 @@ void TabPrint::build()
         optgroup->append_single_option_line("support_material_xy_spacing", category_path + "xy-separation-between-an-object-and-its-support");
         optgroup->append_single_option_line("dont_support_bridges", category_path + "dont-support-bridges");
         optgroup->append_single_option_line("support_material_synchronize_layers", category_path + "synchronize-with-object-layers");
+        //w28
+        optgroup->append_single_option_line("max_bridge_length", category_path + "max_bridge_length");
 
         optgroup = page->new_optgroup(L("Organic supports"));
         const std::string path = "organic-supports_480131#organic-supports-settings";
@@ -1605,6 +1615,8 @@ void TabPrint::build()
         optgroup->append_single_option_line("first_layer_travel_speed");
         
         optgroup->append_single_option_line("first_layer_speed_over_raft");
+        //w25
+        optgroup->append_single_option_line("slow_down_layers");
 
         optgroup = page->new_optgroup(L("Acceleration control (advanced)"));
         optgroup->append_single_option_line("external_perimeter_acceleration");
@@ -1675,6 +1687,9 @@ void TabPrint::build()
 
         optgroup = page->new_optgroup(L("Flow"));
         optgroup->append_single_option_line("bridge_flow_ratio");
+        //w30
+        optgroup->append_single_option_line("top_solid_infill_flow_ratio");
+        optgroup->append_single_option_line("bottom_solid_infill_flow_ratio");
 
         optgroup = page->new_optgroup(L("Slicing"));
         optgroup->append_single_option_line("slice_closing_radius");
@@ -1687,6 +1702,10 @@ void TabPrint::build()
         optgroup->append_single_option_line("xy_hole_compensation");
         optgroup->append_single_option_line("xy_contour_compensation");
         optgroup->append_single_option_line("elefant_foot_compensation", "elephant-foot-compensation_114487");
+        //w26
+        optgroup->append_single_option_line("elefant_foot_compensation_layers");
+        //w27
+        optgroup->append_single_option_line("precise_z_height");
 
         optgroup = page->new_optgroup(L("Arachne perimeter generator"));
         optgroup->append_single_option_line("wall_transition_angle");
@@ -3006,7 +3025,12 @@ void TabPrinter::build_sla()
     optgroup->append_line(line);
     optgroup->append_single_option_line("absolute_correction");
     optgroup->append_single_option_line("elefant_foot_compensation");
+    //w26
+    optgroup->append_single_option_line("elefant_foot_compensation_layers");
     optgroup->append_single_option_line("elefant_foot_min_width");
+    //w27
+    optgroup->append_single_option_line("precise_z_height");
+
     optgroup->append_single_option_line("gamma_correction");
     
     optgroup = page->new_optgroup(L("Exposure"));
@@ -5606,6 +5630,7 @@ std::vector<std::pair<std::string, std::vector<std::string>>> material_overrides
     {"Corrections", {
         "relative_correction",
         "elefant_foot_compensation"
+
     }}
 };
 

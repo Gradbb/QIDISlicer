@@ -481,6 +481,22 @@ static std::vector<std::string> s_Preset_print_options {
     ,"top_area_threshold"
     //w21
     ,"filter_top_gap_infill"
+    //w23
+    ,"only_one_wall_first_layer"
+    //w25
+    ,"slow_down_layers"
+    //w26
+    ,"elefant_foot_compensation_layers"
+    //w27
+    ,"precise_z_height"
+    //w28
+    ,"max_bridge_length"
+    //w30
+    ,"top_solid_infill_flow_ratio", "bottom_solid_infill_flow_ratio"
+    //w31
+    ,"make_overhang_printable", "make_overhang_printable_angle", "make_overhang_printable_hole_size"
+    //w33
+    ,"ironing_pattern"
 };
 
 static std::vector<std::string> s_Preset_filament_options {
