@@ -166,6 +166,9 @@ public:
 
     std::optional<Point> last_position;
 
+    double sum_lift_z_ext = 0;
+    double sum_lift_z     = 0;
+
 private:
     class GCodeOutputStream {
     public:
