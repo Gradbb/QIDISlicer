@@ -2952,10 +2952,11 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &loop_src, const GC
     // Extrude all loops CCW.
     bool  is_hole = loop_src.is_clockwise();
     Point seam_point = this->last_position.has_value() ? *this->last_position : Point::Zero();
-    if (! m_config.spiral_vase && comment_is_perimeter(description)) {
+    if ((!m_config.spiral_vase && comment_is_perimeter(description)) || (this->config().seam_slope_type == SeamScarfType::None) &&comment_is_perimeter(description) ) {
         assert(m_layer != nullptr);
         seam_point = m_seam_placer.place_seam(m_layer, loop_src, m_config.external_perimeters_first, seam_point);
     }
+    
         // Because the G-code export has 1um resolution, don't generate segments shorter than 1.5 microns,
         // thus empty path segments will not be produced by G-code export.
     GCode::SmoothPath smooth_path = smooth_path_cache.resolve_or_fit_split_with_seam(
@@ -2981,11 +2982,13 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &loop_src, const GC
     double      ext_length   = 0;
     double      inner_length = 0;
     double      start_height = 0;
+    bool enable_seam_slope        = loop_src.check_seam_point_angle(m_config.scarf_angle_threshold.value * M_PI / 180.0);
     if (this->config().seam_slope_start_height.percent)
         start_height = this->config().seam_slope_start_height * this->config().layer_height / 100;
     else
         start_height = this->config().seam_slope_start_height;
     double height_for_lift = this->config().layer_height - start_height;
+    if (enable_seam_slope)
     for (const GCode::SmoothPathElement &el : smooth_path) {
         Vec2d  prev_exact = this->point_to_gcode(el.path.front().point);
         Vec2d  prev       = GCodeFormatter::quantize(prev_exact);
@@ -3039,8 +3042,14 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &loop_src, const GC
     if (!this->config().seam_slope_entire_loop && inner_length > this->config().seam_slope_min_length) {
         inner_ratio = height_for_lift / this->config().seam_slope_min_length;
     }
+    //GCode::SmoothPath new_path = smooth_path;
+    //if (this->config().seam_slope_type != SeamScarfType::None) {
+        //GCode::SmoothPath new_path = smooth_path;
+      //  set_step_path(new_path, this->config().seam_slope_steps);
+    //}
+    
     for (const GCode::SmoothPathElement &el : smooth_path) {
-        if (this->config().seam_slope_type == SeamScarfType::None )
+        if (((this->config().seam_slope_type == SeamScarfType::None) || (this->config().seam_slope_type == SeamScarfType::External && is_hole))|| !enable_seam_slope)
             gcode += this->_extrude(el.path_attributes, el.path, description, speed);
         else {
             if (el.path_attributes.role.is_external_perimeter() && this->config().seam_slope_type != SeamScarfType::None)
@@ -3048,6 +3057,9 @@ std::string GCodeGenerator::extrude_loop(const ExtrusionLoop &loop_src, const GC
             else if (el.path_attributes.role.is_perimeter() && this->config().seam_slope_type != SeamScarfType::None &&
                 this->config().seam_slope_inner_walls)
                 gcode += this->_extrude(el.path_attributes, el.path, description, speed, inner_ratio);
+            else if (el.path_attributes.role.is_perimeter() && this->config().seam_slope_type != SeamScarfType::None &&
+                     !this->config().seam_slope_inner_walls)
+                gcode += this->_extrude(el.path_attributes, el.path, description, speed);
         }
         //this->sum_lift_z     = 0;
         //this->sum_lift_z_ext = 0;
@@ -3580,10 +3592,17 @@ std::string GCodeGenerator::_extrude(
             comment = description;
             comment += description_bridge;
         }
-    Vec2d prev_exact = this->point_to_gcode(path.front().point);
+
+    Geometry::ArcWelder::Path new_path = path;
+    int   seam_slope_steps                   = this->config().seam_slope_steps;
+   // if (path.size() < seam_slope_steps)
+     //   set_step_path(&new_path, seam_slope_steps);
+    Vec2d prev_exact = this->point_to_gcode(new_path.front().point);
     Vec2d prev = GCodeFormatter::quantize(prev_exact);
-    auto  it   = path.begin();
-    auto  end  = path.end();
+    auto  it         = new_path.begin();
+    auto  end        = new_path.end();
+    
+
     double sum_lift   = 0;
     double start_height = 0;
     if (this->config().seam_slope_start_height.percent)
@@ -3594,6 +3613,9 @@ std::string GCodeGenerator::_extrude(
     std::vector<Vec3d> point_lift;
     std::vector<double> length_vec;
     std::vector<double> radio_vec;
+    bool is_first_loop = true ;
+    Vec2d first_point ;
+    Vec2d end_point;
     for (++ it; it != end; ++ it) {
         Vec2d p_exact = this->point_to_gcode(it->point);
         Vec2d p = GCodeFormatter::quantize(p_exact);
@@ -3653,9 +3675,17 @@ std::string GCodeGenerator::_extrude(
                         lift_radio        = (start_height + this->sum_lift_z + cur_lift) / this->config().layer_height;
                         
                         Vec3d new_p(p.x(), p.y(), this->m_last_layer_z - height_for_lift + this->sum_lift_z + cur_lift);
+                        if (is_first_loop) {
+                            first_point = prev;
+                            is_first_loop = false;
+                        }
+                        end_point = p;
                         point_lift.emplace_back(new_p);
                         length_vec.emplace_back(line_length);
                         radio_vec.emplace_back(lift_radio);
+                        //lift_radio += 0.2;
+                        //if (lift_radio > 1)
+                        //    lift_radio = 1;
                         gcode += m_writer.extrude_to_xyz(new_p, e_per_mm * line_length * lift_radio , comment);
                         this->sum_lift_z += cur_lift;
                     }
@@ -3672,13 +3702,14 @@ std::string GCodeGenerator::_extrude(
             prev_exact = p_exact;
         }
     }
-
+    
     if (this->config().seam_slope_type != SeamScarfType::None &&
-        (path_attr.role.is_external_perimeter() || path_attr.role.is_perimeter()) && !this->on_first_layer()) {
-        prev_exact = this->point_to_gcode(path.front().point);
+        (path_attr.role.is_external_perimeter() || path_attr.role.is_perimeter()) && !this->on_first_layer() && radio != 0) {
+        prev_exact = this->point_to_gcode(new_path.front().point);
         prev       = GCodeFormatter::quantize(prev_exact);
-        it         = path.begin();
-        end        = path.end();
+        it         = new_path.begin();
+        end        = new_path.end();
+        length_vec[0] += (first_point - end_point).norm();
         for (int i = 0; i < point_lift.size(); i++) {
             Vec3d cur_point = point_lift[i];
             double line_length = length_vec[i];
